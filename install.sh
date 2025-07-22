@@ -1,104 +1,60 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-CONFIG_DIR="$HOME/.termux-animation"
-CONFIG_FILE="$CONFIG_DIR/config.txt"
-LOGIN_SCRIPT="$HOME/.termux-login.sh"
-PROFILE_SCRIPT="$HOME/.bash_profile"
-
-# Create config directory
-mkdir -p "$CONFIG_DIR"
 clear
 
-# Glowing welcome
-echo -e "\033[1;32m"
-toilet -f big -F gay "Termux Setup"
-toilet -f mono12 -F metal "Made by Surya"
-echo -e "\033[0m"
+# Install requirements
+pkg update -y > /dev/null 2>&1
+pkg upgrade -y > /dev/null 2>&1
+pkg install toilet figlet ruby termux-api tsu -y > /dev/null 2>&1
+gem install lolcat > /dev/null 2>&1
 
-echo ""
-read -p "👤 Enter your name (will be shown in animation): " username
-echo "USERNAME=\"$username\"" > "$CONFIG_FILE"
+# Fix TERM in case toilet hangs
+export TERM=xterm
 
-# Ask for password
-read -p "🔐 Do you want to set a Termux password lock? (y/n): " choice
+# Show animated banner
+toilet -f big -F gay "Made by Surya" | lolcat
+echo
+sleep 1
+
+# Ask for user's name
+read -p $'\e[1;32m🔹 Enter your name for the animation: \e[0m' username
+
+# Ask for password (optional)
+read -p $'\e[1;36m🔐 Do you want to set a password on Termux launch? (y/n): \e[0m' choice
+
 if [[ "$choice" == "y" || "$choice" == "Y" ]]; then
-    read -sp "🔒 Enter a password: " userpass
-    echo ""
-    read -sp "🔒 Confirm password: " confirm
-    echo ""
-    if [[ "$userpass" != "$confirm" ]]; then
-        echo -e "\n\033[1;31m❌ Passwords do not match. Exiting...\033[0m"
-        exit 1
-    fi
-    echo "PASSWORD=\"$userpass\"" >> "$CONFIG_FILE"
+    read -p $'\e[1;33m🔑 Enter your password: \e[0m' password
 else
-    echo "PASSWORD=" >> "$CONFIG_FILE"
+    password=""
 fi
 
-# Create secure login script
-cat > "$LOGIN_SCRIPT" << 'EOF'
+# Create animation script
+cat > ~/.termux_anim.sh <<EOF
 #!/data/data/com.termux/files/usr/bin/bash
-
-source "$HOME/.termux-animation/config.txt"
-
-trap '' SIGINT SIGTSTP  # Block Ctrl+C and Ctrl+Z
-
 clear
-
-# Password check
-if [ ! -z "$PASSWORD" ]; then
-    echo -e "\033[1;36mWelcome to Termux\033[0m"
-    echo ""
-    read -sp "🔒 Enter Password: " input
-    echo ""
-    if [[ "$input" != "$PASSWORD" ]]; then
-        echo -e "\033[1;31m❌ Incorrect password. Exiting...\033[0m"
-        sleep 1
-        am stop -n com.termux/com.termux.app.TermuxActivity > /dev/null 2>&1
-        exit
-    fi
-fi
-
-# Animation
-GREEN='\033[1;32m'
-CYAN='\033[1;36m'
-NC='\033[0m'
-
-echo -e "${CYAN}$(toilet -f big "$USERNAME" | lolcat)${NC}"
-sleep 0.5
-
-echo -e "${GREEN}"
-echo "╔════════════════════════════════════════╗"
-echo "║              LOADING...               ║"
-echo "╚════════════════════════════════════════╝"
-sleep 0.3
-
-for i in {1..20}; do
-    filled=$(printf "█%.0s" $(seq 1 $i))
-    empty=$(printf "░%.0s" $(seq $((20 - i))))
-    percent=$((i * 5))
-    echo -ne "${GREEN}   [${filled}${empty}] ${percent}%\r"
-    sleep 0.08
-done
-
-echo -e "\n"
-sleep 0.5
-
-echo -e "${CYAN}"
-echo "╔══════════════════════════════════════╗"
-echo "║        ✅  ACCESS GRANTED           ║"
-echo "╚══════════════════════════════════════╝"
-echo -e "${NC}"
+export TERM=xterm
+toilet -f big -F gay "Welcome, $username" | lolcat
+sleep 1
 EOF
 
-chmod +x "$LOGIN_SCRIPT"
-
-# Hook once into bash_profile
-if ! grep -qF "$LOGIN_SCRIPT" "$PROFILE_SCRIPT"; then
-    echo -e "\n# Auto-run animation on Termux start" >> "$PROFILE_SCRIPT"
-    echo "bash $LOGIN_SCRIPT" >> "$PROFILE_SCRIPT"
+# If password is set, add prompt
+if [[ -n "$password" ]]; then
+cat >> ~/.termux_anim.sh <<EOF
+echo
+read -sp \$'\e[1;31m🔐 Enter password to continue: \e[0m' userpass
+if [[ "\$userpass" != "$password" ]]; then
+    echo -e "\n\e[1;31m❌ Incorrect password. Exiting...\e[0m"
+    exit
+fi
+EOF
 fi
 
-clear
-toilet -f big -F gay "Setup Done!"
-echo -e "\033[1;32m✅ Restart Termux to see the animation & lock.\033[0m"
+# Add executable permission
+chmod +x ~/.termux_anim.sh
+
+# Set up Termux boot script
+mkdir -p ~/.termux/boot
+echo -e "#!/data/data/com.termux/files/usr/bin/bash\nbash ~/.termux_anim.sh" > ~/.termux/boot/start.sh
+chmod +x ~/.termux/boot/start.sh
+
+echo -e "\n\e[1;32m✅ All done! Restart Termux to see the animation.\e[0m"
