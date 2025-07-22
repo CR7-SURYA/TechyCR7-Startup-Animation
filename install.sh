@@ -7,19 +7,24 @@ PROFILE_SCRIPT="$HOME/.bash_profile"
 
 # Create config directory
 mkdir -p "$CONFIG_DIR"
-
 clear
-echo -e "\033[1;36mWelcome to the Termux Setup Script!\033[0m"
+
+# Glowing welcome
+echo -e "\033[1;32m"
+toilet -f big -F gay "Termux Setup"
+toilet -f mono12 -F metal "Made by Surya"
+echo -e "\033[0m"
+
 echo ""
-read -p "Enter your name (will be shown in animation): " username
+read -p "👤 Enter your name (will be shown in animation): " username
 echo "USERNAME=\"$username\"" > "$CONFIG_FILE"
 
 # Ask for password
-read -p "Do you want to set a Termux password lock? (y/n): " choice
+read -p "🔐 Do you want to set a Termux password lock? (y/n): " choice
 if [[ "$choice" == "y" || "$choice" == "Y" ]]; then
-    read -sp "Enter a password: " userpass
+    read -sp "🔒 Enter a password: " userpass
     echo ""
-    read -sp "Confirm password: " confirm
+    read -sp "🔒 Confirm password: " confirm
     echo ""
     if [[ "$userpass" != "$confirm" ]]; then
         echo -e "\n\033[1;31m❌ Passwords do not match. Exiting...\033[0m"
@@ -30,11 +35,13 @@ else
     echo "PASSWORD=" >> "$CONFIG_FILE"
 fi
 
-# Create the login animation script
+# Create secure login script
 cat > "$LOGIN_SCRIPT" << 'EOF'
 #!/data/data/com.termux/files/usr/bin/bash
 
 source "$HOME/.termux-animation/config.txt"
+
+trap '' SIGINT SIGTSTP  # Block Ctrl+C and Ctrl+Z
 
 clear
 
@@ -45,9 +52,9 @@ if [ ! -z "$PASSWORD" ]; then
     read -sp "🔒 Enter Password: " input
     echo ""
     if [[ "$input" != "$PASSWORD" ]]; then
-        echo -e "\033[1;31m❌ Incorrect password. Access denied!\033[0m"
+        echo -e "\033[1;31m❌ Incorrect password. Exiting...\033[0m"
         sleep 1
-        clear
+        am stop -n com.termux/com.termux.app.TermuxActivity > /dev/null 2>&1
         exit
     fi
 fi
@@ -86,11 +93,12 @@ EOF
 
 chmod +x "$LOGIN_SCRIPT"
 
-# Hook it into bash_profile only once
+# Hook once into bash_profile
 if ! grep -qF "$LOGIN_SCRIPT" "$PROFILE_SCRIPT"; then
     echo -e "\n# Auto-run animation on Termux start" >> "$PROFILE_SCRIPT"
     echo "bash $LOGIN_SCRIPT" >> "$PROFILE_SCRIPT"
 fi
 
 clear
-echo -e "\033[1;32m✅ Setup complete! Restart Termux to see the animation.\033[0m"
+toilet -f big -F gay "Setup Done!"
+echo -e "\033[1;32m✅ Restart Termux to see the animation & lock.\033[0m"
